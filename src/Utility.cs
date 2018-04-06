@@ -20,13 +20,28 @@ namespace Oxide.Core.Lua
         public static bool IsArray(this LuaTable table, out int count)
         {
             count = 0;
-            foreach (var key in table.Keys)
+            foreach (object key in table.Keys)
             {
-                if (!(key is double)) return false;
-                var numkey = (double)key;
-                if (Math.Floor(numkey) != numkey) return false;
-                if (numkey < 1.0) return false;
-                if (numkey > count) count = (int)numkey;
+                if (!(key is double))
+                {
+                    return false;
+                }
+
+                double numkey = (double)key;
+                if (Math.Floor(numkey) != numkey)
+                {
+                    return false;
+                }
+
+                if (numkey < 1.0)
+                {
+                    return false;
+                }
+
+                if (numkey > count)
+                {
+                    count = (int)numkey;
+                }
             }
             return true;
         }
@@ -50,12 +65,19 @@ namespace Oxide.Core.Lua
         public static void SetConfigFromTable(DynamicConfigFile config, LuaTable table)
         {
             config.Clear();
-            foreach (var key in table.Keys)
+            foreach (object key in table.Keys)
             {
-                var keystr = key as string;
-                if (keystr == null) continue;
-                var value = TranslateLuaItemToConfigItem(table[key]);
-                if (value != null) config[keystr] = value;
+                string keystr = key as string;
+                if (keystr == null)
+                {
+                    continue;
+                }
+
+                object value = TranslateLuaItemToConfigItem(table[key]);
+                if (value != null)
+                {
+                    config[keystr] = value;
+                }
             }
         }
 
@@ -66,35 +88,48 @@ namespace Oxide.Core.Lua
         /// <returns></returns>
         private static object TranslateLuaItemToConfigItem(object item)
         {
-            if (item is string) return item;
+            if (item is string)
+            {
+                return item;
+            }
+
             if (item is double)
             {
                 // If it's whole, return it as an int
-                var number = (double)item;
+                double number = (double)item;
                 if (Math.Truncate(number) == number)
+                {
                     return (int)number;
+                }
+
                 return (float)number;
             }
-            if (item is bool) return item;
+            if (item is bool)
+            {
+                return item;
+            }
+
             if (item is LuaTable)
             {
-                var table = item as LuaTable;
+                LuaTable table = item as LuaTable;
                 int count;
                 if (table.IsArray(out count))
                 {
-                    var list = new List<object>();
-                    for (var i = 0; i < count; i++)
+                    List<object> list = new List<object>();
+                    for (int i = 0; i < count; i++)
                     {
-                        var luaobj = table[(double)(i + 1)];
+                        object luaobj = table[(double)(i + 1)];
                         list.Add(luaobj != null ? TranslateLuaItemToConfigItem(luaobj) : null);
                     }
                     return list;
                 }
-                var dict = new Dictionary<string, object>();
-                foreach (var key in table.Keys)
+                Dictionary<string, object> dict = new Dictionary<string, object>();
+                foreach (object key in table.Keys)
                 {
                     if (key is string)
+                    {
                         dict.Add(key as string, TranslateLuaItemToConfigItem(table[key]));
+                    }
                 }
                 return dict;
             }
@@ -103,12 +138,16 @@ namespace Oxide.Core.Lua
 
         private static void CreateFullPath(string fullPath, LuaTable tbl, NLua.Lua lua)
         {
-            var path = fullPath.Split('.');
-            for (var i = 0; i < path.Length - 1; i++)
+            string[] path = fullPath.Split('.');
+            for (int i = 0; i < path.Length - 1; i++)
             {
-                if (tbl[path[i]] != null) continue;
+                if (tbl[path[i]] != null)
+                {
+                    continue;
+                }
+
                 lua.NewTable("tmp");
-                var table = (LuaTable)lua["tmp"];
+                LuaTable table = (LuaTable)lua["tmp"];
                 tbl[path[i]] = table;
                 lua["tmp"] = null;
                 tbl = table;
@@ -125,11 +164,11 @@ namespace Oxide.Core.Lua
         {
             // Make a table
             lua.NewTable("tmp");
-            var tbl = lua["tmp"] as LuaTable;
+            LuaTable tbl = lua["tmp"] as LuaTable;
             lua["tmp"] = null;
 
             // Loop each item in config
-            foreach (var pair in config)
+            foreach (KeyValuePair<string, object> pair in config)
             {
                 CreateFullPath(pair.Key, tbl, lua);
                 // Translate and set on table
@@ -150,44 +189,51 @@ namespace Oxide.Core.Lua
         {
             // Switch on the object type
             if (item is int || item is float || item is double)
+            {
                 return Convert.ToDouble(item);
-            else if (item is bool)
+            }
+
+            if (item is bool)
+            {
                 return Convert.ToBoolean(item);
-            else if (item is string)
+            }
+
+            if (item is string)
+            {
                 return item;
-            else if (item is List<object>)
+            }
+
+            if (item is List<object>)
             {
                 lua.NewTable("tmplist");
-                var tbl = lua["tmplist"] as LuaTable;
+                LuaTable tbl = lua["tmplist"] as LuaTable;
                 lua["tmplist"] = null;
 
-                var list = item as List<object>;
-                for (var i = 0; i < list.Count; i++)
+                List<object> list = item as List<object>;
+                for (int i = 0; i < list.Count; i++)
                 {
                     tbl[i + 1] = TranslateConfigItemToLuaItem(lua, list[i]);
                 }
 
                 return tbl;
             }
-            else
+
+            if (item is Dictionary<string, object>)
             {
-                if (item is Dictionary<string, object>)
+                lua.NewTable("tmpdict");
+                LuaTable tbl = lua["tmpdict"] as LuaTable;
+                lua["tmpdict"] = null;
+
+                Dictionary<string, object> dict = item as Dictionary<string, object>;
+                foreach (KeyValuePair<string, object> pair in dict)
                 {
-                    lua.NewTable("tmpdict");
-                    var tbl = lua["tmpdict"] as LuaTable;
-                    lua["tmpdict"] = null;
-
-                    var dict = item as Dictionary<string, object>;
-                    foreach (var pair in dict)
-                    {
-                        CreateFullPath(pair.Key, tbl, lua);
-                        tbl[pair.Key] = TranslateConfigItemToLuaItem(lua, pair.Value);
-                    }
-
-                    return tbl;
+                    CreateFullPath(pair.Key, tbl, lua);
+                    tbl[pair.Key] = TranslateConfigItemToLuaItem(lua, pair.Value);
                 }
-                return null;
+
+                return tbl;
             }
+            return null;
         }
 
         /// <summary>
@@ -205,9 +251,15 @@ namespace Oxide.Core.Lua
         public static string GetTypeName(Type type)
         {
             if (type.IsNested)
+            {
                 return GetTypeName(type.DeclaringType) + "+" + type.Name;
+            }
+
             if (type.IsGenericType)
+            {
                 return type.Name.Substring(0, type.Name.IndexOf('`'));
+            }
+
             return type.Name;
         }
 
@@ -218,7 +270,7 @@ namespace Oxide.Core.Lua
         /// <returns></returns>
         public static IEnumerable<Type> GetAllTypesFromAssembly(Assembly asm)
         {
-            foreach (var module in asm.GetModules())
+            foreach (Module module in asm.GetModules())
             {
                 Type[] moduleTypes;
                 try
@@ -234,8 +286,13 @@ namespace Oxide.Core.Lua
                     moduleTypes = new Type[0];
                 }
 
-                foreach (var type in moduleTypes)
-                    if (type != null) yield return type;
+                foreach (Type type in moduleTypes)
+                {
+                    if (type != null)
+                    {
+                        yield return type;
+                    }
+                }
             }
         }
     }

@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0
 MinimumVisualStudioVersion = 15.0
-Project("{36594111-4193-484D-952D-A7A0E0EA3E53}") = "Oxide.Lua", "Oxide.Lua\Oxide.Lua.csproj", "{18D00F0B-8CF3-4002-940A-4A8CA449A352}"
+Project("{36594111-4193-484D-952D-A7A0E0EA3E53}") = "Oxide.Lua", "src\Oxide.Lua.csproj", "{18D00F0B-8CF3-4002-940A-4A8CA449A352}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

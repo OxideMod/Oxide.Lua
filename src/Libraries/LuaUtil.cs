@@ -46,12 +46,12 @@ namespace Oxide.Core.Lua.Libraries
             }
 
             // Get the length
-            var arr = new object[size];
+            object[] arr = new object[size];
 
             // Create the array
-            foreach (var key in table.Keys)
+            foreach (object key in table.Keys)
             {
-                var index = Convert.ToInt32(key) - 1;
+                int index = Convert.ToInt32(key) - 1;
                 arr[index] = table[key];
             }
 
@@ -67,11 +67,13 @@ namespace Oxide.Core.Lua.Libraries
         [LibraryFunction("TableToLangDict")]
         public object TableToLangDict(LuaTable table)
         {
-            var dict = new Dictionary<string, string>();
-            foreach (var key in table.Keys)
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            foreach (object key in table.Keys)
             {
                 if (key is string)
+                {
                     dict.Add((string)key, (string)table[key]);
+                }
             }
             return dict;
         }
@@ -87,14 +89,16 @@ namespace Oxide.Core.Lua.Libraries
             // First of all, check it's actually an array
             int size;
             if (!table.IsArray(out size) || size == 0)
+            {
                 throw new InvalidOperationException("Specified table is not an array");
+            }
 
             // Get the length
-            var result = -1;
+            int result = -1;
             Type type = null;
 
             // Create the array
-            foreach (var key in table.Keys)
+            foreach (object key in table.Keys)
             {
                 if (result < 0)
                 {
@@ -128,6 +132,7 @@ namespace Oxide.Core.Lua.Libraries
             {
                 return false;
             }
+
             array[index] = converted;
             return true;
         }
@@ -141,11 +146,14 @@ namespace Oxide.Core.Lua.Libraries
         public LuaTable EvaluateEnumerable(IEnumerable obj)
         {
             LuaEnvironment.NewTable("_tmp_enumerable");
-            var tbl = LuaEnvironment["_tmp_enumerable"] as LuaTable;
-            var e = obj.GetEnumerator();
-            var i = 0;
+            LuaTable tbl = LuaEnvironment["_tmp_enumerable"] as LuaTable;
+            IEnumerator e = obj.GetEnumerator();
+            int i = 0;
             while (e.MoveNext())
+            {
                 tbl[++i] = e.Current;
+            }
+
             LuaEnvironment["_tmp_enumerable"] = null;
             return tbl;
         }
@@ -160,13 +168,25 @@ namespace Oxide.Core.Lua.Libraries
         public Type SpecializeType(Type baseType, LuaTable argTable)
         {
             int cnt;
-            if (!argTable.IsArray(out cnt)) throw new ArgumentException("Table is not an array", "argTable");
-            var typeArgs = new Type[cnt];
-            for (var i = 0; i < cnt; i++)
+            if (!argTable.IsArray(out cnt))
             {
-                var obj = argTable[i + 1];
-                if (obj is LuaTable) obj = (obj as LuaTable)["_type"];
-                if (!(obj is Type)) throw new ArgumentException("Item in table is not a Type", $"argTable[{i + 1}]");
+                throw new ArgumentException("Table is not an array", "argTable");
+            }
+
+            Type[] typeArgs = new Type[cnt];
+            for (int i = 0; i < cnt; i++)
+            {
+                object obj = argTable[i + 1];
+                if (obj is LuaTable)
+                {
+                    obj = (obj as LuaTable)["_type"];
+                }
+
+                if (!(obj is Type))
+                {
+                    throw new ArgumentException("Item in table is not a Type", $"argTable[{i + 1}]");
+                }
+
                 typeArgs[i] = obj as Type;
             }
             return baseType.MakeGenericType(typeArgs);

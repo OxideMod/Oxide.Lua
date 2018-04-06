@@ -35,10 +35,10 @@ namespace Oxide.Core.Lua.Plugins
         private IDictionary<string, LuaFunction> functions;
 
         // The plugin change watcher
-        private FSWatcher watcher;
+        private readonly FSWatcher watcher;
 
         // The Lua extension
-        private LuaExtension luaExt;
+        private readonly LuaExtension luaExt;
 
         /// <summary>
         /// Initializes a new instance of the LuaPlugin class
@@ -64,7 +64,7 @@ namespace Oxide.Core.Lua.Plugins
         protected override void LoadDefaultConfig()
         {
             LuaEnvironment.NewTable("tmp");
-            var tmp = LuaEnvironment["tmp"] as LuaTable;
+            LuaTable tmp = LuaEnvironment["tmp"] as LuaTable;
             Table["Config"] = tmp;
             LuaEnvironment["tmp"] = null;
             CallHook("LoadDefaultConfig", null);
@@ -78,7 +78,9 @@ namespace Oxide.Core.Lua.Plugins
         {
             base.LoadConfig();
             if (Table != null)
+            {
                 Table["Config"] = Utility.TableFromConfig(Config, LuaEnvironment);
+            }
         }
 
         /// <summary>
@@ -86,11 +88,17 @@ namespace Oxide.Core.Lua.Plugins
         /// </summary>
         protected override void SaveConfig()
         {
-            if (Config == null) return;
-            if (Table == null) return;
-            var configtable = Table["Config"] as LuaTable;
+            if (Config == null || Table == null)
+            {
+                return;
+            }
+
+            LuaTable configtable = Table["Config"] as LuaTable;
             if (configtable != null)
+            {
                 Utility.SetConfigFromTable(Config, configtable);
+            }
+
             base.SaveConfig();
         }
 
@@ -102,10 +110,18 @@ namespace Oxide.Core.Lua.Plugins
         public override void Load()
         {
             // Load the plugin into a table
-            var source = File.ReadAllText(Filename);
-            if (Regex.IsMatch(source, @"PLUGIN\.Version\s*=\s*[\'|""]", RegexOptions.IgnoreCase)) throw new Exception("Plugin version is a string, Oxide 1.18 plugins are not compatible with Oxide 2");
-            var pluginfunc = LuaEnvironment.LoadString(source, Path.GetFileName(Filename));
-            if (pluginfunc == null) throw new Exception("LoadString returned null for some reason");
+            string source = File.ReadAllText(Filename);
+            if (Regex.IsMatch(source, @"PLUGIN\.Version\s*=\s*[\'|""]", RegexOptions.IgnoreCase))
+            {
+                throw new Exception("Plugin version is a string, Oxide 1.18 plugins are not compatible with Oxide 2");
+            }
+
+            LuaFunction pluginfunc = LuaEnvironment.LoadString(source, Path.GetFileName(Filename));
+            if (pluginfunc == null)
+            {
+                throw new Exception("LoadString returned null for some reason");
+            }
+
             LuaEnvironment.NewTable("PLUGIN");
             Table = (LuaTable)LuaEnvironment["PLUGIN"];
             ((LuaFunction)LuaEnvironment["setmetatable"]).Call(Table, luaExt.PluginMetatable);
@@ -113,15 +129,38 @@ namespace Oxide.Core.Lua.Plugins
             pluginfunc.Call();
 
             // Read plugin attributes
-            if (!(Table["Title"] is string)) throw new Exception("Plugin is missing title");
-            if (!(Table["Author"] is string)) throw new Exception("Plugin is missing author");
-            if (!(Table["Version"] is VersionNumber)) throw new Exception("Plugin is missing version");
+            if (!(Table["Title"] is string))
+            {
+                throw new Exception("Plugin is missing title");
+            }
+
+            if (!(Table["Author"] is string))
+            {
+                throw new Exception("Plugin is missing author");
+            }
+
+            if (!(Table["Version"] is VersionNumber))
+            {
+                throw new Exception("Plugin is missing version");
+            }
+
             Title = (string)Table["Title"];
             Author = (string)Table["Author"];
             Version = (VersionNumber)Table["Version"];
-            if (Table["Description"] is string) Description = (string)Table["Description"];
-            if (Table["ResourceId"] is double) ResourceId = (int)(double)Table["ResourceId"];
-            if (Table["HasConfig"] is bool) HasConfig = (bool)Table["HasConfig"];
+            if (Table["Description"] is string)
+            {
+                Description = (string)Table["Description"];
+            }
+
+            if (Table["ResourceId"] is double)
+            {
+                ResourceId = (int)(double)Table["ResourceId"];
+            }
+
+            if (Table["HasConfig"] is bool)
+            {
+                HasConfig = (bool)Table["HasConfig"];
+            }
 
             // Set attributes
             Table["Object"] = this;
@@ -129,30 +168,39 @@ namespace Oxide.Core.Lua.Plugins
 
             // Get all functions and hook them
             functions = new Dictionary<string, LuaFunction>();
-            foreach (var keyobj in Table.Keys)
+            foreach (object keyobj in Table.Keys)
             {
-                var key = keyobj as string;
-                if (key == null) continue;
-                var value = Table[key];
-                var func = value as LuaFunction;
+                string key = keyobj as string;
+                if (key == null)
+                {
+                    continue;
+                }
+
+                object value = Table[key];
+                LuaFunction func = value as LuaFunction;
                 if (func != null)
+                {
                     functions.Add(key, func);
+                }
             }
-            if (!HasConfig) HasConfig = functions.ContainsKey("LoadDefaultConfig");
+            if (!HasConfig)
+            {
+                HasConfig = functions.ContainsKey("LoadDefaultConfig");
+            }
 
             // Bind any base methods (we do it here because we don't want them to be hooked)
             BindBaseMethods();
 
             // Deal with any attributes
-            var attribs = Table["_attribArr"] as LuaTable;
+            LuaTable attribs = Table["_attribArr"] as LuaTable;
             if (attribs != null)
             {
-                var i = 0;
+                int i = 0;
                 while (attribs[++i] != null)
                 {
-                    var attrib = attribs[i] as LuaTable;
-                    var attribName = attrib["_attribName"] as string;
-                    var attribFunc = attrib["_func"] as LuaFunction;
+                    LuaTable attrib = attribs[i] as LuaTable;
+                    string attribName = attrib["_attribName"] as string;
+                    LuaFunction attribFunc = attrib["_func"] as LuaFunction;
                     if (attribFunc != null && !string.IsNullOrEmpty(attribName))
                     {
                         HandleAttribute(attribName, attribFunc, attrib);
@@ -177,10 +225,14 @@ namespace Oxide.Core.Lua.Plugins
             {
                 case "Command":
                     // Parse data out of it
-                    var cmdNames = new List<string>();
-                    var i = 0;
-                    while (data[++i] != null) cmdNames.Add(data[i] as string);
-                    var cmdNamesArr = cmdNames.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+                    List<string> cmdNames = new List<string>();
+                    int i = 0;
+                    while (data[++i] != null)
+                    {
+                        cmdNames.Add(data[i] as string);
+                    }
+
+                    string[] cmdNamesArr = cmdNames.Where(s => !string.IsNullOrEmpty(s)).ToArray();
                     string[] cmdPermsArr;
                     if (data["permission"] is string)
                     {
@@ -188,14 +240,20 @@ namespace Oxide.Core.Lua.Plugins
                     }
                     else if (data["permission"] is LuaTable || data["permissions"] is LuaTable)
                     {
-                        var permsTable = (data["permission"] as LuaTable) ?? (data["permissions"] as LuaTable);
-                        var cmdPerms = new List<string>();
+                        LuaTable permsTable = data["permission"] as LuaTable ?? data["permissions"] as LuaTable;
+                        List<string> cmdPerms = new List<string>();
                         i = 0;
-                        while (permsTable[++i] != null) cmdPerms.Add(permsTable[i] as string);
+                        while (permsTable[++i] != null)
+                        {
+                            cmdPerms.Add(permsTable[i] as string);
+                        }
+
                         cmdPermsArr = cmdPerms.Where(s => !string.IsNullOrEmpty(s)).ToArray();
                     }
                     else
+                    {
                         cmdPermsArr = new string[0];
+                    }
 
                     // Register it
                     AddCovalenceCommand(cmdNamesArr, cmdPermsArr, (caller, cmd, args) =>
@@ -211,21 +269,14 @@ namespace Oxide.Core.Lua.Plugins
         private void HandleCommandCallback(LuaFunction func, IPlayer caller, string cmd, string[] args)
         {
             LuaEnvironment.NewTable("tmp");
-            var argsTable = LuaEnvironment["tmp"] as LuaTable;
+            LuaTable argsTable = LuaEnvironment["tmp"] as LuaTable;
             LuaEnvironment["tmp"] = null;
-            for (var i = 0; i < args.Length; i++)
+            for (int i = 0; i < args.Length; i++)
             {
                 argsTable[i + 1] = args[i];
             }
-            try
-            {
-                func.Call(Table, caller, cmd, argsTable);
-            }
-            catch (Exception)
-            {
-                // TODO: Error handling and stuff
-                throw;
-            }
+
+            func.Call(Table, caller, cmd, argsTable);
         }
 
         /// <summary>
@@ -240,7 +291,7 @@ namespace Oxide.Core.Lua.Plugins
         /// <param name="luaname"></param>
         private void BindBaseMethod(string methodname, string luaname)
         {
-            var method = GetType().GetMethod(methodname, BindingFlags.Static | BindingFlags.NonPublic);
+            MethodInfo method = GetType().GetMethod(methodname, BindingFlags.Static | BindingFlags.NonPublic);
             LuaEnvironment.RegisterFunction($"PLUGIN.{luaname}", method);
         }
 
@@ -252,7 +303,7 @@ namespace Oxide.Core.Lua.Plugins
         /// <param name="plugintable"></param>
         private static void lua_SaveConfig(LuaTable plugintable)
         {
-            var plugin = plugintable["Object"] as LuaPlugin;
+            LuaPlugin plugin = plugintable["Object"] as LuaPlugin;
             plugin?.SaveConfig();
         }
 
@@ -268,7 +319,10 @@ namespace Oxide.Core.Lua.Plugins
             base.HandleAddedToManager(manager);
 
             // Subscribe all our hooks
-            foreach (var key in functions.Keys) Subscribe(key);
+            foreach (string key in functions.Keys)
+            {
+                Subscribe(key);
+            }
 
             // Add us to the watcher
             watcher.AddMapping(Name);
@@ -306,21 +360,31 @@ namespace Oxide.Core.Lua.Plugins
         protected override object OnCallHook(string hookname, object[] args)
         {
             LuaFunction func;
-            if (!functions.TryGetValue(hookname, out func)) return null;
+            if (!functions.TryGetValue(hookname, out func))
+            {
+                return null;
+            }
+
             try
             {
                 object[] returnvalues;
                 if (args != null && args.Length > 0)
                 {
-                    var realargs = new object[args.Length + 1];
+                    object[] realargs = new object[args.Length + 1];
                     realargs[0] = Table;
                     Array.Copy(args, 0, realargs, 1, args.Length);
                     returnvalues = func.Call(realargs);
                 }
                 else
+                {
                     returnvalues = func.Call(Table);
+                }
+
                 if (returnvalues == null || returnvalues.Length == 0)
+                {
                     return null;
+                }
+
                 return returnvalues[0];
             }
             catch (TargetInvocationException ex)

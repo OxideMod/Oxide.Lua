@@ -40,10 +40,14 @@ namespace Oxide.Core.Lua.Libraries
             }
             else
             {
-                var message = string.Empty;
-                for (var i = 0; i < args.Length; ++i)
+                string message = string.Empty;
+                for (int i = 0; i < args.Length; ++i)
                 {
-                    if (i > 0) message += "\t";
+                    if (i > 0)
+                    {
+                        message += "\t";
+                    }
+
                     message += args[i]?.ToString() ?? "null";
                 }
                 Logger.Write(LogType.Info, message);

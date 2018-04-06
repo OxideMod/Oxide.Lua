@@ -21,7 +21,7 @@ namespace Oxide.Core.Lua.Libraries
         public NLua.Lua LuaEnvironment { get; }
 
         // The data file map
-        private Dictionary<DynamicConfigFile, LuaTable> datafilemap;
+        private readonly Dictionary<DynamicConfigFile, LuaTable> datafilemap;
 
         /// <summary>
         /// Initializes a new instance of the LuaDatafile class
@@ -42,8 +42,11 @@ namespace Oxide.Core.Lua.Libraries
         public LuaTable GetDataTable(string name)
         {
             // Get the data file
-            var datafile = Interface.Oxide.DataFileSystem.GetDatafile(name);
-            if (datafile == null) return null;
+            DynamicConfigFile datafile = Interface.Oxide.DataFileSystem.GetDatafile(name);
+            if (datafile == null)
+            {
+                return null;
+            }
 
             // Check if it already exists
             LuaTable table;
@@ -69,12 +72,18 @@ namespace Oxide.Core.Lua.Libraries
         public void SaveDataTable(string name)
         {
             // Get the data file
-            var datafile = Interface.Oxide.DataFileSystem.GetDatafile(name);
-            if (datafile == null) return;
+            DynamicConfigFile datafile = Interface.Oxide.DataFileSystem.GetDatafile(name);
+            if (datafile == null)
+            {
+                return;
+            }
 
             // Get the table
             LuaTable table;
-            if (!datafilemap.TryGetValue(datafile, out table)) return;
+            if (!datafilemap.TryGetValue(datafile, out table))
+            {
+                return;
+            }
 
             // Copy and save
             Utility.SetConfigFromTable(datafile, table);
